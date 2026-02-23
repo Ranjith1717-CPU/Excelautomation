@@ -1,7 +1,7 @@
 # Excel Automation Toolkit v2.0
 
 All-in-one Excel automation powered by Python + pandas.
-One interactive CLI covering every common Excel task — 17 modules, 100+ operations.
+One interactive CLI covering every common Excel task — 18 modules, 100+ operations.
 
 ---
 
@@ -208,6 +208,18 @@ python generate_standalone.py
 - Excel → Tab/pipe/custom delimited text
 - Merge multiple CSV files into one Excel
 
+### 18. Project Management
+- **Team Consolidator** — Merge team member data from multiple files/sheets; optional dedup on ID column
+- **Split by Team** — One file per department/team from a master sheet
+- **Timesheet Rollup** — Consolidate N timesheet files → Detail + By Person + By Project + Person×Project pivot
+- **Resource Allocation** — Allocation % per resource per project, over-allocation flags
+- **Milestone Tracker** — RAG status (Red/Amber/Green), slippage days, overdue count, owner summary
+- **RACI Matrix** — Build and validate R/A/C/I matrix, flag tasks with no Accountable/Responsible
+- **Risk Register** — Score by Probability×Impact (1-5), rank Critical/High/Medium/Low, heat map data
+- **Action Tracker** — Consolidate meeting action items, flag overdue, Days_Overdue, priority levels
+- **Capacity Planner** — Available vs allocated hours, utilisation %, over-allocation alerts by team
+- **Sprint Tracker** — Velocity per sprint, completion %, backlog health, sprints-to-clear estimate
+
 ### 17. Lookup & Match
 - VLOOKUP — Join columns from a reference file
 - Fuzzy Match — Approximate string matching (rapidfuzz)
@@ -247,7 +259,8 @@ excel-automation/
 ├── standalone/              ← Self-contained shareable folders
 │   ├── finance/             → finance.py + cli.py + run.bat
 │   ├── hr/
-│   └── ... (16 folders)
+│   ├── project_mgmt/
+│   └── ... (17 folders)
 ├── output/                  ← All results saved here (auto-timestamped)
 └── sample_data/             ← Place your test Excel files here
 ```

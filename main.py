@@ -45,7 +45,8 @@ init(autoreset=True)
 # Add local modules path
 sys.path.insert(0, str(Path(__file__).parent))
 from modules import (consolidator, calculator, cleaner, transformer, comparator, reporter, column_ops,
-                     finance, hr, sales, inventory, formatter, validator, analytics, converter, lookup)
+                     finance, hr, sales, inventory, formatter, validator, analytics, converter, lookup,
+                     project_mgmt)
 
 # ── Output directory ──────────────────────────────────────────────────────────
 OUTPUT_DIR = Path(__file__).parent / "output"
@@ -1697,6 +1698,150 @@ def menu_lookup():
 
 
 # =============================================================================
+# MENU 18 — PROJECT MANAGEMENT
+# =============================================================================
+
+def menu_project_mgmt():
+    while True:
+        banner()
+        section("18. PROJECT MANAGEMENT")
+        choice = menu_choice([
+            ("1",  "Team Consolidator     — Merge team data from multiple files/sheets"),
+            ("2",  "Split by Team         — One file per department / team"),
+            ("3",  "Timesheet Rollup      — Consolidate N timesheets → person×project pivot"),
+            ("4",  "Resource Allocation   — Allocation % per resource per project"),
+            ("5",  "Milestone Tracker     — RAG status, slippage days, overdue flags"),
+            ("6",  "RACI Matrix           — Build and validate responsibility matrix"),
+            ("7",  "Risk Register         — Score by Prob×Impact, heat map, owner summary"),
+            ("8",  "Action Tracker        — Consolidate meeting actions, flag overdue"),
+            ("9",  "Capacity Planner      — Available vs allocated, over-allocation alerts"),
+            ("10", "Sprint Tracker        — Velocity, completion %, backlog health"),
+        ], "Select operation")
+
+        if choice == "0":
+            break
+
+        try:
+            if choice == "1":
+                files = pick_files("Enter Excel files (or folder)")
+                if not files: continue
+                add_src  = prompt("Add source file/sheet columns? [y/n]").lower() != "n"
+                id_col   = prompt("Unique ID column for deduplication (or Enter to skip)") or None
+                out = get_output_path("team_consolidated")
+                result = project_mgmt.team_consolidator(files, out, add_source=add_src, id_col=id_col)
+
+            elif choice == "2":
+                file = pick_single_file("Enter Excel file path")
+                if not file: continue
+                cols = pd.read_excel(file, nrows=0).columns.tolist()
+                split_col = prompt(f"Column to split by (e.g. Team, Department) {cols}")
+                out_dir = str(OUTPUT_DIR / f"team_split_{datetime.datetime.now().strftime('%H%M%S')}")
+                created = project_mgmt.split_by_team(file, split_col, out_dir)
+                success(f"Created {len(created)} file(s) in {out_dir}")
+                pause(); continue
+
+            elif choice == "3":
+                files = pick_files("Enter timesheet files (or folder)")
+                if not files: continue
+                cols = pd.read_excel(files[0], nrows=0).columns.tolist()
+                person_col  = prompt(f"Person / Name column {cols}")
+                project_col = prompt(f"Project column {cols}")
+                hours_col   = prompt(f"Hours column {cols}")
+                date_col    = prompt(f"Date column {cols}")
+                out = get_output_path("timesheet_rollup")
+                result = project_mgmt.timesheet_rollup(files, person_col, project_col,
+                                                        hours_col, date_col, out)
+
+            elif choice == "4":
+                file = pick_single_file("Enter Excel file path")
+                if not file: continue
+                cols = pd.read_excel(file, nrows=0).columns.tolist()
+                resource_col = prompt(f"Resource / Person column {cols}")
+                project_col  = prompt(f"Project column {cols}")
+                hours_col    = prompt(f"Allocated hours column {cols}")
+                capacity_col = prompt(f"Capacity / Available hours column {cols}")
+                out = get_output_path("resource_allocation")
+                result = project_mgmt.resource_allocation(file, resource_col, project_col,
+                                                           hours_col, capacity_col, out)
+
+            elif choice == "5":
+                file = pick_single_file("Enter Excel file path")
+                if not file: continue
+                cols = pd.read_excel(file, nrows=0).columns.tolist()
+                task_col    = prompt(f"Task / Milestone column {cols}")
+                owner_col   = prompt(f"Owner column {cols}")
+                planned_col = prompt(f"Planned date column {cols}")
+                actual_col  = prompt(f"Actual completion date column (blank = not done) {cols}")
+                out = get_output_path("milestone_tracker")
+                result = project_mgmt.milestone_tracker(file, task_col, owner_col,
+                                                         planned_col, actual_col, out)
+
+            elif choice == "6":
+                file = pick_single_file("Enter Excel file path")
+                if not file: continue
+                cols = pd.read_excel(file, nrows=0).columns.tolist()
+                task_col  = prompt(f"Task column {cols}")
+                role_cols = pick_columns(cols, "Select role columns (values should be R / A / C / I)")
+                out = get_output_path("raci_matrix")
+                result = project_mgmt.raci_matrix(file, task_col, role_cols, out)
+
+            elif choice == "7":
+                file = pick_single_file("Enter Excel file path")
+                if not file: continue
+                cols = pd.read_excel(file, nrows=0).columns.tolist()
+                desc_col   = prompt(f"Risk description column {cols}")
+                prob_col   = prompt(f"Probability column (1-5) {cols}")
+                impact_col = prompt(f"Impact column (1-5) {cols}")
+                owner_col  = prompt(f"Risk owner column {cols}")
+                out = get_output_path("risk_register")
+                result = project_mgmt.risk_register(file, desc_col, prob_col,
+                                                     impact_col, owner_col, out)
+
+            elif choice == "8":
+                files = pick_files("Enter meeting action files (or folder)")
+                if not files: continue
+                cols = pd.read_excel(files[0], nrows=0).columns.tolist()
+                action_col = prompt(f"Action description column {cols}")
+                owner_col  = prompt(f"Owner column {cols}")
+                due_col    = prompt(f"Due date column {cols}")
+                status_col = prompt(f"Status column {cols}")
+                out = get_output_path("action_tracker")
+                result = project_mgmt.action_tracker(files, action_col, owner_col,
+                                                      due_col, status_col, out)
+
+            elif choice == "9":
+                file = pick_single_file("Enter Excel file path")
+                if not file: continue
+                cols = pd.read_excel(file, nrows=0).columns.tolist()
+                resource_col  = prompt(f"Resource / Name column {cols}")
+                role_col      = prompt(f"Role / Team column {cols}")
+                available_col = prompt(f"Available hours column {cols}")
+                allocated_col = prompt(f"Allocated / Demand hours column {cols}")
+                out = get_output_path("capacity_planner")
+                result = project_mgmt.capacity_planner(file, resource_col, role_col,
+                                                        available_col, allocated_col, out)
+
+            elif choice == "10":
+                file = pick_single_file("Enter Excel file path")
+                if not file: continue
+                cols = pd.read_excel(file, nrows=0).columns.tolist()
+                story_col  = prompt(f"Story / Task title column {cols}")
+                points_col = prompt(f"Story points column {cols}")
+                status_col = prompt(f"Status column {cols}")
+                sprint_col = prompt(f"Sprint name / number column {cols}")
+                out = get_output_path("sprint_tracker")
+                result = project_mgmt.sprint_tracker(file, story_col, points_col,
+                                                      status_col, sprint_col, out)
+            else:
+                continue
+
+            success(f"Saved → {result}")
+        except Exception as e:
+            error(str(e))
+        pause()
+
+
+# =============================================================================
 # MAIN MENU
 # =============================================================================
 
@@ -1722,6 +1867,7 @@ def main():
             ("15", "Statistical Analytics   — correlation, Pareto, regression, Z-score"),
             ("16", "Convert Files           — Excel↔CSV, Excel↔JSON, XLS→XLSX"),
             ("17", "Lookup & Match          — VLOOKUP, fuzzy match, multi-key join"),
+            ("18", "Project Management      — timesheets, milestones, RACI, risks, sprints"),
         ]
         for key, label in options:
             print(f"    {Fore.CYAN}{key:>2}{Style.RESET_ALL}  {label}")
@@ -1749,6 +1895,7 @@ def main():
         elif choice == "15": menu_analytics()
         elif choice == "16": menu_converter()
         elif choice == "17": menu_lookup()
+        elif choice == "18": menu_project_mgmt()
         else:
             error("Invalid choice — please enter a number from the menu")
             pause()
@@ -1774,7 +1921,8 @@ if __name__ == "__main__":
         "validate":    menu_validator,
         "analytics":   menu_analytics,
         "convert":     menu_converter,
-        "lookup":      menu_lookup,
+        "lookup":        menu_lookup,
+        "project_mgmt":  menu_project_mgmt,
     }
 
     if len(sys.argv) > 1:

@@ -43,7 +43,8 @@ MODULES = [
     ("validator",   "validator.py",    "validator",    "menu_validator",   []),
     ("analytics",   "analytics.py",    "analytics",    "menu_analytics",   []),
     ("converter",   "converter.py",    "converter",    "menu_converter",   []),
-    ("lookup",      "lookup.py",       "lookup",       "menu_lookup",      ["rapidfuzz"]),
+    ("lookup",       "lookup.py",        "lookup",        "menu_lookup",        ["rapidfuzz"]),
+    ("project_mgmt", "project_mgmt.py",  "project_mgmt",  "menu_project_mgmt",  []),
 ]
 
 # UI helper functions to extract verbatim from main.py
