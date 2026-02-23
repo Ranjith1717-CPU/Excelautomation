@@ -1,0 +1,35 @@
+@echo off
+title Excel Automation — Calculate & Analyze
+color 0B
+
+echo.
+echo  ============================================================
+echo    EXCEL AUTOMATION TOOLKIT  — CALCULATE & ANALYZE
+echo    Efficiency, KPIs, Variance, Growth Rate, Stats
+echo  ============================================================
+echo.
+
+python --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo  [ERROR] Python not found on PATH. Install Python 3.8+ first.
+    pause
+    exit /b 1
+)
+
+echo  Installing / updating required packages...
+pip install pandas openpyxl xlrd colorama tabulate numpy --quiet --upgrade
+
+echo.
+echo  Launching Calculate module...
+echo  ============================================================
+echo.
+
+cd /d "%~dp0"
+python main.py calculate
+
+echo.
+echo  ============================================================
+echo   Session ended. Check the 'output' folder for your files.
+echo  ============================================================
+echo.
+pause

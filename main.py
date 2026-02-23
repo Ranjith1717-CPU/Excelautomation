@@ -1,10 +1,19 @@
 """
 =============================================================================
-  EXCEL AUTOMATION TOOLKIT  v1.0
+  EXCEL AUTOMATION TOOLKIT  v2.0
   All-in-one Excel automation powered by Python + pandas
 =============================================================================
   Run this file directly:   python main.py
   Or use the launcher:      run.bat  (Windows)
+  Jump to a module:         python main.py finance
+                            python main.py hr
+                            python main.py sales
+                            python main.py inventory
+                            python main.py format
+                            python main.py validate
+                            python main.py analytics
+                            python main.py convert
+                            python main.py lookup
 =============================================================================
 """
 import os
@@ -35,7 +44,8 @@ init(autoreset=True)
 
 # Add local modules path
 sys.path.insert(0, str(Path(__file__).parent))
-from modules import consolidator, calculator, cleaner, transformer, comparator, reporter, column_ops
+from modules import (consolidator, calculator, cleaner, transformer, comparator, reporter, column_ops,
+                     finance, hr, sales, inventory, formatter, validator, analytics, converter, lookup)
 
 # ── Output directory ──────────────────────────────────────────────────────────
 OUTPUT_DIR = Path(__file__).parent / "output"
@@ -50,7 +60,7 @@ def banner():
     os.system("cls" if os.name == "nt" else "clear")
     print(Fore.CYAN + Style.BRIGHT + """
 ╔══════════════════════════════════════════════════════════╗
-║          EXCEL AUTOMATION TOOLKIT  v1.0                  ║
+║          EXCEL AUTOMATION TOOLKIT  v2.0                  ║
 ║          Automate Everything Excel — Powered by Python   ║
 ╚══════════════════════════════════════════════════════════╝""")
     print(Fore.YELLOW + f"  Output folder: {OUTPUT_DIR}\n")
@@ -888,6 +898,805 @@ def menu_preview():
 
 
 # =============================================================================
+# MENU 9 — FINANCE
+# =============================================================================
+
+def menu_finance():
+    while True:
+        banner()
+        section("9. FINANCE")
+        choice = menu_choice([
+            ("1", "AR/AP Aging Analysis       — 0-30, 31-60, 61-90, 90+ buckets"),
+            ("2", "Loan Amortization Schedule — EMI, principal, interest, balance"),
+            ("3", "Depreciation Schedule      — Straight-line + declining balance"),
+            ("4", "Financial Ratios           — Gross margin, ROI, current ratio"),
+            ("5", "Payroll Calculator         — Gross→Net with HRA/PF/ESI/TDS"),
+            ("6", "Budget vs Actual           — Variance + % variance report"),
+            ("7", "Compound Interest Schedule — Future value growth table"),
+        ], "Select operation")
+
+        if choice == "0":
+            break
+
+        try:
+            if choice == "1":
+                file = pick_single_file("Enter Excel file path")
+                if not file: continue
+                cols = pd.read_excel(file, nrows=0).columns.tolist()
+                date_col   = prompt(f"Date column {cols}")
+                amount_col = prompt(f"Amount column {cols}")
+                as_of      = prompt("As-of date [YYYY-MM-DD] (or Enter for today)") or None
+                out = get_output_path("aging_analysis")
+                result = finance.aging_analysis(file, date_col, amount_col, out, as_of)
+
+            elif choice == "2":
+                principal = float(prompt("Principal amount (e.g. 1000000)"))
+                rate      = float(prompt("Annual interest rate % (e.g. 12)"))
+                months    = int(prompt("Loan tenure in months (e.g. 60)"))
+                out = get_output_path("loan_amortization")
+                result = finance.loan_amortization(principal, rate, months, out)
+
+            elif choice == "3":
+                file = pick_single_file("Enter Excel file path (needs: Asset, Cost, Salvage_Value, Useful_Life_Years)")
+                if not file: continue
+                out = get_output_path("depreciation_schedule")
+                result = finance.depreciation_schedule(file, out)
+
+            elif choice == "4":
+                file = pick_single_file("Enter Excel file path")
+                if not file: continue
+                out = get_output_path("financial_ratios")
+                result = finance.financial_ratios(file, out)
+
+            elif choice == "5":
+                file = pick_single_file("Enter Excel file path")
+                if not file: continue
+                cols = pd.read_excel(file, nrows=0).columns.tolist()
+                basic_col = prompt(f"Basic salary column {cols}")
+                out = get_output_path("payroll")
+                result = finance.payroll_calculator(file, basic_col, out)
+
+            elif choice == "6":
+                budget_file = pick_single_file("Enter BUDGET file path")
+                if not budget_file: continue
+                actual_file = pick_single_file("Enter ACTUAL file path")
+                if not actual_file: continue
+                cols = pd.read_excel(budget_file, nrows=0).columns.tolist()
+                key_col = prompt(f"Key column (present in both files) {cols}")
+                out = get_output_path("budget_vs_actual")
+                result = finance.budget_vs_actual(budget_file, actual_file, key_col, out)
+
+            elif choice == "7":
+                principal = float(prompt("Principal amount (e.g. 100000)"))
+                rate      = float(prompt("Annual interest rate % (e.g. 8)"))
+                periods   = int(prompt("Number of years (e.g. 10)"))
+                freq      = prompt("Compounding frequency [annual/semi-annual/quarterly/monthly]") or "annual"
+                out = get_output_path("compound_interest")
+                result = finance.compound_interest_schedule(principal, rate, periods, out, freq)
+            else:
+                continue
+
+            success(f"Saved → {result}")
+        except Exception as e:
+            error(str(e))
+        pause()
+
+
+# =============================================================================
+# MENU 10 — HR
+# =============================================================================
+
+def menu_hr():
+    while True:
+        banner()
+        section("10. HR ANALYTICS")
+        choice = menu_choice([
+            ("1", "Attrition Analysis         — Turnover rate by department"),
+            ("2", "Headcount Summary          — Count/% by group columns"),
+            ("3", "Tenure Analysis            — Years-of-service bands"),
+            ("4", "Age Band Analysis          — Workforce age demographics"),
+            ("5", "Salary Analysis            — Min/max/median/percentiles"),
+            ("6", "Performance Distribution   — Rating bell-curve + ranking"),
+            ("7", "Salary Increment Calculator— Apply % increment to salary"),
+        ], "Select operation")
+
+        if choice == "0":
+            break
+
+        file = pick_single_file("Enter Excel file path")
+        if not file: continue
+
+        try:
+            cols = pd.read_excel(file, nrows=0).columns.tolist()
+        except Exception as e:
+            error(str(e)); pause(); continue
+
+        try:
+            if choice == "1":
+                status_col = prompt(f"Employee status column {cols}")
+                dept_col   = prompt(f"Department column {cols}")
+                active     = prompt("Value meaning 'Active' (default: Active)") or "Active"
+                left       = prompt("Value meaning 'Left' (default: Left)") or "Left"
+                out = get_output_path("attrition_analysis")
+                result = hr.attrition_analysis(file, status_col, dept_col, out, active, left)
+
+            elif choice == "2":
+                group_cols = pick_columns(cols, "Group-by columns")
+                out = get_output_path("headcount_summary")
+                result = hr.headcount_summary(file, group_cols, out)
+
+            elif choice == "3":
+                join_col  = prompt(f"Join / Hire date column {cols}")
+                exit_col  = prompt(f"Exit date column (or Enter to skip) {cols}") or None
+                out = get_output_path("tenure_analysis")
+                result = hr.tenure_analysis(file, join_col, out, exit_date_col=exit_col)
+
+            elif choice == "4":
+                dob_col = prompt(f"Date of birth column {cols}")
+                out = get_output_path("age_band_analysis")
+                result = hr.age_band_analysis(file, dob_col, out)
+
+            elif choice == "5":
+                salary_col = prompt(f"Salary column {cols}")
+                dept_col   = prompt(f"Department/Group column {cols}")
+                out = get_output_path("salary_analysis")
+                result = hr.salary_analysis(file, salary_col, dept_col, out)
+
+            elif choice == "6":
+                rating_col = prompt(f"Performance rating column {cols}")
+                out = get_output_path("performance_distribution")
+                result = hr.performance_distribution(file, rating_col, out)
+
+            elif choice == "7":
+                salary_col  = prompt(f"Current salary column {cols}")
+                pct_raw     = prompt("Flat increment % for all (e.g. 10) OR column name with individual %s")
+                try:
+                    pct_or_col = float(pct_raw)
+                except ValueError:
+                    pct_or_col = pct_raw
+                out = get_output_path("salary_increment")
+                result = hr.salary_increment_calculator(file, salary_col, pct_or_col, out)
+            else:
+                continue
+
+            success(f"Saved → {result}")
+        except Exception as e:
+            error(str(e))
+        pause()
+
+
+# =============================================================================
+# MENU 11 — SALES
+# =============================================================================
+
+def menu_sales():
+    while True:
+        banner()
+        section("11. SALES ANALYTICS")
+        choice = menu_choice([
+            ("1", "Commission Calculator  — Flat % or tiered slab"),
+            ("2", "RFM Segmentation       — Recency, Frequency, Monetary"),
+            ("3", "Quota Attainment       — % attainment + status labels"),
+            ("4", "Pipeline Analysis      — Funnel by stage + conversion"),
+            ("5", "Sales by Territory     — Territory summary + rank"),
+            ("6", "Customer ABC           — A/B/C by revenue contribution"),
+            ("7", "Discount Analysis      — Discount % + revenue leakage"),
+        ], "Select operation")
+
+        if choice == "0":
+            break
+
+        file = pick_single_file("Enter Excel file path")
+        if not file: continue
+
+        try:
+            cols = pd.read_excel(file, nrows=0).columns.tolist()
+        except Exception as e:
+            error(str(e)); pause(); continue
+
+        try:
+            if choice == "1":
+                sales_col = prompt(f"Sales amount column {cols}")
+                use_tiers = prompt("Use tiered commission? [y/n]").lower() == "y"
+                tiers = None
+                if use_tiers:
+                    tiers = []
+                    info("Enter tiers: (max_sales, commission_%). Press Enter with empty max_sales to finish.")
+                    while True:
+                        lim = prompt("Tier max sales (or Enter to add ∞ final tier)")
+                        pct = prompt("Commission % for this tier")
+                        if lim == "":
+                            tiers.append((float("inf"), float(pct)))
+                            break
+                        tiers.append((float(lim), float(pct)))
+                flat_pct = float(prompt("Flat commission % (only if not tiered, default: 5)") or "5") if not tiers else 5.0
+                out = get_output_path("commission")
+                result = sales.commission_calculator(file, sales_col, out, tiers=tiers, flat_pct=flat_pct)
+
+            elif choice == "2":
+                customer_col = prompt(f"Customer ID column {cols}")
+                date_col     = prompt(f"Transaction date column {cols}")
+                amount_col   = prompt(f"Transaction amount column {cols}")
+                out = get_output_path("rfm_segmentation")
+                result = sales.rfm_segmentation(file, customer_col, date_col, amount_col, out)
+
+            elif choice == "3":
+                actual_col = prompt(f"Actual sales column {cols}")
+                quota_col  = prompt(f"Quota column {cols}")
+                out = get_output_path("quota_attainment")
+                result = sales.quota_attainment(file, actual_col, quota_col, out)
+
+            elif choice == "4":
+                stage_col = prompt(f"Pipeline stage column {cols}")
+                value_col = prompt(f"Deal value column {cols}")
+                out = get_output_path("pipeline_analysis")
+                result = sales.pipeline_analysis(file, stage_col, value_col, out)
+
+            elif choice == "5":
+                territory_col = prompt(f"Territory column {cols}")
+                sales_col     = prompt(f"Sales amount column {cols}")
+                out = get_output_path("sales_by_territory")
+                result = sales.sales_by_territory(file, territory_col, sales_col, out)
+
+            elif choice == "6":
+                customer_col = prompt(f"Customer column {cols}")
+                revenue_col  = prompt(f"Revenue column {cols}")
+                out = get_output_path("customer_abc")
+                result = sales.customer_abc(file, customer_col, revenue_col, out)
+
+            elif choice == "7":
+                list_col = prompt(f"List price column {cols}")
+                sell_col = prompt(f"Sell price column {cols}")
+                out = get_output_path("discount_analysis")
+                result = sales.discount_analysis(file, list_col, sell_col, out)
+            else:
+                continue
+
+            success(f"Saved → {result}")
+        except Exception as e:
+            error(str(e))
+        pause()
+
+
+# =============================================================================
+# MENU 12 — INVENTORY
+# =============================================================================
+
+def menu_inventory():
+    while True:
+        banner()
+        section("12. INVENTORY MANAGEMENT")
+        choice = menu_choice([
+            ("1", "ABC Analysis        — Classify items by value contribution"),
+            ("2", "Reorder Point       — ROP = usage × lead time + safety stock"),
+            ("3", "Stock Aging         — Age-bucket inventory by receipt date"),
+            ("4", "Inventory Turnover  — Turnover ratio + days on hand"),
+            ("5", "OEE Calculator      — Availability × Performance × Quality"),
+            ("6", "Dead Stock Analysis — Items with no movement beyond N days"),
+        ], "Select operation")
+
+        if choice == "0":
+            break
+
+        file = pick_single_file("Enter Excel file path")
+        if not file: continue
+
+        try:
+            cols = pd.read_excel(file, nrows=0).columns.tolist()
+        except Exception as e:
+            error(str(e)); pause(); continue
+
+        try:
+            if choice == "1":
+                item_col  = prompt(f"Item/SKU column {cols}")
+                value_col = prompt(f"Value column {cols}")
+                out = get_output_path("abc_analysis")
+                result = inventory.abc_analysis(file, item_col, value_col, out)
+
+            elif choice == "2":
+                info("Expected columns: Avg_Daily_Usage, Lead_Time_Days, Safety_Stock, Current_Stock")
+                out = get_output_path("reorder_point")
+                result = inventory.reorder_point(file, out)
+
+            elif choice == "3":
+                receipt_col = prompt(f"Receipt date column {cols}")
+                qty_col     = prompt(f"Quantity column {cols}")
+                out = get_output_path("stock_aging")
+                result = inventory.stock_aging(file, receipt_col, qty_col, out)
+
+            elif choice == "4":
+                cogs_col      = prompt(f"COGS / Cost column {cols}")
+                inventory_col = prompt(f"Inventory value column {cols}")
+                item_col      = prompt(f"Item group column for summary (or Enter to skip) {cols}") or None
+                out = get_output_path("inventory_turnover")
+                result = inventory.inventory_turnover(file, cogs_col, inventory_col, out, item_col=item_col)
+
+            elif choice == "5":
+                info("Expected columns: Planned_Time, Downtime, Ideal_Rate, Actual_Rate, Good_Units, Total_Units")
+                out = get_output_path("oee")
+                result = inventory.oee_calculator(file, out)
+
+            elif choice == "6":
+                last_move_col = prompt(f"Last movement date column {cols}")
+                qty_col       = prompt(f"Quantity column {cols}")
+                days          = int(prompt("Dead stock threshold in days (default: 180)") or "180")
+                out = get_output_path("dead_stock")
+                result = inventory.dead_stock_analysis(file, last_move_col, qty_col, out, days=days)
+            else:
+                continue
+
+            success(f"Saved → {result}")
+        except Exception as e:
+            error(str(e))
+        pause()
+
+
+# =============================================================================
+# MENU 13 — FORMAT / STYLE
+# =============================================================================
+
+def menu_formatter():
+    while True:
+        banner()
+        section("13. FORMAT & STYLE")
+        choice = menu_choice([
+            ("1",  "Add Bar Chart          — Embedded column chart"),
+            ("2",  "Add Line Chart         — Embedded line chart"),
+            ("3",  "Add Pie Chart          — Embedded pie chart"),
+            ("4",  "Traffic Light Colors   — Red/Yellow/Green cell fills"),
+            ("5",  "Color Scale            — Gradient min→max fill"),
+            ("6",  "Format as Table        — Apply Excel table style"),
+            ("7",  "Freeze & Filter        — Freeze header + auto-filter"),
+            ("8",  "Auto-fit Columns       — Width based on content"),
+            ("9",  "Add Totals Row         — SUM row at bottom"),
+            ("10", "Highlight Duplicates   — Yellow fill on duplicate cells"),
+            ("11", "Apply Number Format    — Currency/percentage/comma"),
+        ], "Select operation")
+
+        if choice == "0":
+            break
+
+        file = pick_single_file("Enter Excel file path")
+        if not file: continue
+
+        try:
+            cols = pd.read_excel(file, nrows=0).columns.tolist()
+        except Exception as e:
+            error(str(e)); pause(); continue
+
+        try:
+            if choice == "1":
+                x_col = prompt(f"Category/X-axis column {cols}")
+                y_col = prompt(f"Value/Y-axis column {cols}")
+                title = prompt("Chart title (or Enter for default)") or "Bar Chart"
+                out = get_output_path("bar_chart")
+                result = formatter.add_bar_chart(file, x_col, y_col, out, title=title)
+
+            elif choice == "2":
+                x_col = prompt(f"X-axis column {cols}")
+                y_col = prompt(f"Y-axis column {cols}")
+                title = prompt("Chart title (or Enter for default)") or "Line Chart"
+                out = get_output_path("line_chart")
+                result = formatter.add_line_chart(file, x_col, y_col, out, title=title)
+
+            elif choice == "3":
+                cat_col = prompt(f"Category column {cols}")
+                val_col = prompt(f"Value column {cols}")
+                title   = prompt("Chart title (or Enter for default)") or "Pie Chart"
+                out = get_output_path("pie_chart")
+                result = formatter.add_pie_chart(file, cat_col, val_col, out, title=title)
+
+            elif choice == "4":
+                col = prompt(f"Numeric column to color {cols}")
+                info("Leave thresholds blank to use auto 33rd/66th percentile")
+                red_raw    = prompt("Red threshold (below this = red)")
+                yellow_raw = prompt("Yellow threshold (below this = yellow)")
+                red    = float(red_raw)    if red_raw    else None
+                yellow = float(yellow_raw) if yellow_raw else None
+                out = get_output_path("traffic_light")
+                result = formatter.apply_traffic_light(file, col, out, red=red, yellow=yellow)
+
+            elif choice == "5":
+                col = prompt(f"Numeric column for color scale {cols}")
+                out = get_output_path("color_scale")
+                result = formatter.apply_color_scale(file, col, out)
+
+            elif choice == "6":
+                style = prompt("Table style (default: TableStyleMedium9)") or "TableStyleMedium9"
+                out = get_output_path("table_styled")
+                result = formatter.format_as_table(file, out, style=style)
+
+            elif choice == "7":
+                out = get_output_path("frozen_filtered")
+                result = formatter.freeze_and_filter(file, out)
+
+            elif choice == "8":
+                out = get_output_path("auto_fit")
+                result = formatter.auto_fit_columns(file, out)
+
+            elif choice == "9":
+                out = get_output_path("with_totals")
+                result = formatter.add_totals_row(file, out)
+
+            elif choice == "10":
+                col = prompt(f"Column to check for duplicates {cols}")
+                out = get_output_path("duplicates_highlighted")
+                result = formatter.highlight_duplicates(file, col, out)
+
+            elif choice == "11":
+                selected = pick_columns(cols, "Columns to format")
+                info("Format examples: '#,##0.00'  |  '\"$\"#,##0.00'  |  '0.00%'  |  '#,##0'")
+                fmt = prompt("Number format string")
+                out = get_output_path("number_formatted")
+                result = formatter.apply_number_format(file, selected, fmt, out)
+            else:
+                continue
+
+            success(f"Saved → {result}")
+        except Exception as e:
+            error(str(e))
+        pause()
+
+
+# =============================================================================
+# MENU 14 — VALIDATE DATA
+# =============================================================================
+
+def menu_validator():
+    while True:
+        banner()
+        section("14. VALIDATE DATA")
+        choice = menu_choice([
+            ("1", "Check Mandatory Fields  — Flag rows missing required values"),
+            ("2", "Validate Email          — Regex email format check"),
+            ("3", "Validate Phone          — Phone number format check"),
+            ("4", "Numeric Range Check     — Flag out-of-range values"),
+            ("5", "Date Range Check        — Flag dates outside boundaries"),
+            ("6", "Referential Integrity   — Values must exist in lookup file"),
+            ("7", "Data Quality Report     — Comprehensive quality score 0-100"),
+            ("8", "Detect PII              — Flag columns with sensitive data"),
+        ], "Select operation")
+
+        if choice == "0":
+            break
+
+        file = pick_single_file("Enter Excel file path")
+        if not file: continue
+
+        try:
+            cols = pd.read_excel(file, nrows=0).columns.tolist()
+        except Exception as e:
+            error(str(e)); pause(); continue
+
+        try:
+            if choice == "1":
+                req_cols = pick_columns(cols, "Select mandatory / required columns")
+                out = get_output_path("mandatory_check")
+                result = validator.check_mandatory_fields(file, req_cols, out)
+
+            elif choice == "2":
+                email_col = prompt(f"Email column {cols}")
+                out = get_output_path("email_validation")
+                result = validator.validate_email(file, email_col, out)
+
+            elif choice == "3":
+                phone_col = prompt(f"Phone column {cols}")
+                out = get_output_path("phone_validation")
+                result = validator.validate_phone(file, phone_col, out)
+
+            elif choice == "4":
+                col     = prompt(f"Numeric column to check {cols}")
+                min_val = float(prompt("Minimum allowed value"))
+                max_val = float(prompt("Maximum allowed value"))
+                out = get_output_path("range_check")
+                result = validator.validate_numeric_range(file, col, min_val, max_val, out)
+
+            elif choice == "5":
+                date_col = prompt(f"Date column {cols}")
+                min_date = prompt("Minimum allowed date [YYYY-MM-DD]")
+                max_date = prompt("Maximum allowed date [YYYY-MM-DD]")
+                out = get_output_path("date_range_check")
+                result = validator.validate_date_range(file, date_col, min_date, max_date, out)
+
+            elif choice == "6":
+                col      = prompt(f"Column to validate {cols}")
+                ref_file = pick_single_file("Enter reference/lookup file path")
+                if not ref_file: continue
+                ref_cols = pd.read_excel(ref_file, nrows=0).columns.tolist()
+                ref_col  = prompt(f"Reference column (must contain valid values) {ref_cols}")
+                out = get_output_path("referential_integrity")
+                result = validator.referential_integrity(file, col, ref_file, ref_col, out)
+
+            elif choice == "7":
+                out = get_output_path("data_quality_report")
+                result = validator.data_quality_report(file, out)
+
+            elif choice == "8":
+                out = get_output_path("pii_detection")
+                result = validator.detect_pii(file, out)
+            else:
+                continue
+
+            success(f"Saved → {result}")
+        except Exception as e:
+            error(str(e))
+        pause()
+
+
+# =============================================================================
+# MENU 15 — ANALYTICS
+# =============================================================================
+
+def menu_analytics():
+    while True:
+        banner()
+        section("15. STATISTICAL ANALYTICS")
+        choice = menu_choice([
+            ("1", "Correlation Matrix     — Pairwise Pearson correlation"),
+            ("2", "Pareto Analysis        — 80/20 cumulative % chart data"),
+            ("3", "Linear Regression      — OLS + R² + predictions"),
+            ("4", "Trend Forecast         — Extrapolate trend N periods ahead"),
+            ("5", "Frequency Distribution — Histogram bin counts"),
+            ("6", "Z-Score Analysis       — Outlier detection via std deviation"),
+            ("7", "Cohort Retention       — Monthly customer retention matrix"),
+        ], "Select operation")
+
+        if choice == "0":
+            break
+
+        file = pick_single_file("Enter Excel file path")
+        if not file: continue
+
+        try:
+            cols = pd.read_excel(file, nrows=0).columns.tolist()
+        except Exception as e:
+            error(str(e)); pause(); continue
+
+        try:
+            if choice == "1":
+                selected = pick_columns(cols, "Select numeric columns for correlation (or ALL)")
+                out = get_output_path("correlation_matrix")
+                result = analytics.correlation_matrix(file, selected, out)
+
+            elif choice == "2":
+                category_col = prompt(f"Category column {cols}")
+                value_col    = prompt(f"Value column {cols}")
+                out = get_output_path("pareto_analysis")
+                result = analytics.pareto_analysis(file, category_col, value_col, out)
+
+            elif choice == "3":
+                x_col = prompt(f"Independent variable (X) column {cols}")
+                y_col = prompt(f"Dependent variable (Y) column {cols}")
+                out = get_output_path("linear_regression")
+                result = analytics.linear_regression(file, x_col, y_col, out)
+
+            elif choice == "4":
+                date_col  = prompt(f"Date column {cols}")
+                value_col = prompt(f"Value column {cols}")
+                periods   = int(prompt("Number of future periods to forecast") or "6")
+                out = get_output_path("trend_forecast")
+                result = analytics.trend_forecast(file, date_col, value_col, periods, out)
+
+            elif choice == "5":
+                col  = prompt(f"Numeric column {cols}")
+                bins = int(prompt("Number of bins (default: 10)") or "10")
+                out = get_output_path("frequency_distribution")
+                result = analytics.frequency_distribution(file, col, bins, out)
+
+            elif choice == "6":
+                col       = prompt(f"Numeric column to analyze {cols}")
+                threshold = float(prompt("Outlier threshold in σ (default: 3.0)") or "3.0")
+                out = get_output_path("z_score_analysis")
+                result = analytics.z_score_analysis(file, col, out, threshold=threshold)
+
+            elif choice == "7":
+                customer_col = prompt(f"Customer ID column {cols}")
+                date_col     = prompt(f"Transaction date column {cols}")
+                out = get_output_path("cohort_retention")
+                result = analytics.cohort_retention(file, customer_col, date_col, out)
+            else:
+                continue
+
+            success(f"Saved → {result}")
+        except Exception as e:
+            error(str(e))
+        pause()
+
+
+# =============================================================================
+# MENU 16 — CONVERT FILES
+# =============================================================================
+
+def menu_converter():
+    while True:
+        banner()
+        section("16. CONVERT FILES")
+        choice = menu_choice([
+            ("1", "Excel → CSV        — Each sheet to separate CSV"),
+            ("2", "CSV → Excel        — Multiple CSVs into one workbook"),
+            ("3", "Excel → JSON       — All sheets to JSON"),
+            ("4", "JSON → Excel       — JSON array/object to Excel"),
+            ("5", "XLS → XLSX Batch   — Convert old .xls files"),
+            ("6", "Excel → Text       — Tab/pipe/custom delimited export"),
+            ("7", "Merge CSV Files    — Stack multiple CSVs into one Excel"),
+        ], "Select operation")
+
+        if choice == "0":
+            break
+
+        try:
+            if choice == "1":
+                file = pick_single_file("Enter Excel file path")
+                if not file: continue
+                out_dir = str(OUTPUT_DIR / f"csv_export_{datetime.datetime.now().strftime('%H%M%S')}")
+                created = converter.excel_to_csv(file, out_dir)
+                success(f"Created {len(created)} CSV file(s) in: {out_dir}")
+                pause(); continue
+
+            elif choice == "2":
+                info("Select CSV files to merge into Excel sheets")
+                raw = prompt("Enter CSV file paths (comma-separated or folder)")
+                paths = []
+                for part in raw.split(","):
+                    part = part.strip().strip('"').strip("'")
+                    p = Path(part)
+                    if p.is_dir():
+                        paths.extend([str(f) for f in p.glob("*.csv")])
+                    elif p.is_file():
+                        paths.append(str(p))
+                if not paths:
+                    error("No CSV files found"); continue
+                out = get_output_path("csv_merged")
+                result = converter.csv_to_excel(paths, out)
+
+            elif choice == "3":
+                file = pick_single_file("Enter Excel file path")
+                if not file: continue
+                out = get_output_path("excel_export", ext=".json")
+                result = converter.excel_to_json(file, out)
+
+            elif choice == "4":
+                json_file = prompt("Enter JSON file path").strip().strip('"')
+                if not Path(json_file).is_file():
+                    error(f"File not found: {json_file}"); continue
+                out = get_output_path("from_json")
+                result = converter.json_to_excel(json_file, out)
+
+            elif choice == "5":
+                files = pick_files("Enter .xls file paths (or folder)")
+                if not files: continue
+                out_dir = str(OUTPUT_DIR / f"xlsx_batch_{datetime.datetime.now().strftime('%H%M%S')}")
+                created = converter.xls_to_xlsx_batch(files, out_dir)
+                success(f"Converted {len(created)} file(s) to: {out_dir}")
+                pause(); continue
+
+            elif choice == "6":
+                file = pick_single_file("Enter Excel file path")
+                if not file: continue
+                delim = prompt("Delimiter: tab=\\t  pipe=|  comma=,  (default: tab)") or "\t"
+                if delim.lower() in ("\\t", "tab"): delim = "\t"
+                out_dir = str(OUTPUT_DIR / f"text_export_{datetime.datetime.now().strftime('%H%M%S')}")
+                created = converter.excel_to_text(file, out_dir, delimiter=delim)
+                success(f"Created {len(created)} file(s) in: {out_dir}")
+                pause(); continue
+
+            elif choice == "7":
+                raw = prompt("Enter CSV file paths (comma-separated or folder)")
+                paths = []
+                for part in raw.split(","):
+                    part = part.strip().strip('"').strip("'")
+                    p = Path(part)
+                    if p.is_dir():
+                        paths.extend([str(f) for f in p.glob("*.csv")])
+                    elif p.is_file():
+                        paths.append(str(p))
+                if not paths:
+                    error("No CSV files found"); continue
+                out = get_output_path("csv_stacked")
+                result = converter.merge_csv_files(paths, out)
+            else:
+                continue
+
+            success(f"Saved → {result}")
+        except Exception as e:
+            error(str(e))
+        pause()
+
+
+# =============================================================================
+# MENU 17 — LOOKUP & MATCH
+# =============================================================================
+
+def menu_lookup():
+    while True:
+        banner()
+        section("17. LOOKUP & MATCH")
+        choice = menu_choice([
+            ("1", "VLOOKUP           — Join columns from a reference file"),
+            ("2", "Fuzzy Match       — Approximate string matching"),
+            ("3", "Multi-Key Lookup  — Multi-column JOIN"),
+            ("4", "Reverse Lookup    — Find key by value"),
+            ("5", "Enrich from Ref   — Add columns from a master reference"),
+        ], "Select operation")
+
+        if choice == "0":
+            break
+
+        file = pick_single_file("Enter main Excel file path")
+        if not file: continue
+
+        try:
+            cols = pd.read_excel(file, nrows=0).columns.tolist()
+        except Exception as e:
+            error(str(e)); pause(); continue
+
+        try:
+            if choice == "1":
+                lookup_col  = prompt(f"Lookup column in main file {cols}")
+                ref_file    = pick_single_file("Enter reference/lookup file path")
+                if not ref_file: continue
+                ref_cols    = pd.read_excel(ref_file, nrows=0).columns.tolist()
+                ref_col     = prompt(f"Key column in reference file {ref_cols}")
+                return_raw  = prompt(f"Columns to return from reference (comma-sep or ALL) {ref_cols}")
+                if return_raw.strip().upper() == "ALL":
+                    return_cols = [c for c in ref_cols if c != ref_col]
+                else:
+                    return_cols = [c.strip() for c in return_raw.split(",") if c.strip()]
+                how = prompt("Join type [left/inner/outer] (default: left)") or "left"
+                out = get_output_path("vlookup_result")
+                result = lookup.vlookup(file, lookup_col, ref_file, ref_col, return_cols, out, how=how)
+
+            elif choice == "2":
+                col      = prompt(f"Column to match {cols}")
+                ref_file = pick_single_file("Enter reference file path")
+                if not ref_file: continue
+                ref_cols = pd.read_excel(ref_file, nrows=0).columns.tolist()
+                ref_col  = prompt(f"Reference column to match against {ref_cols}")
+                thresh   = float(prompt("Match threshold 0-1 (default: 0.75)") or "0.75")
+                out = get_output_path("fuzzy_match")
+                result = lookup.fuzzy_match(file, col, ref_file, ref_col, out, threshold=thresh)
+
+            elif choice == "3":
+                lookup_cols = pick_columns(cols, "Key columns for JOIN (must exist in reference file too)")
+                ref_file    = pick_single_file("Enter reference file path")
+                if not ref_file: continue
+                how = prompt("Join type [left/inner/outer] (default: left)") or "left"
+                out = get_output_path("multi_key_lookup")
+                result = lookup.multi_key_lookup(file, lookup_cols, ref_file, out, how=how)
+
+            elif choice == "4":
+                value_col = prompt(f"Column with values to look up {cols}")
+                ref_file  = pick_single_file("Enter reference file path")
+                if not ref_file: continue
+                ref_cols  = pd.read_excel(ref_file, nrows=0).columns.tolist()
+                key_col   = prompt(f"Key column in reference {ref_cols}")
+                val_col   = prompt(f"Value column in reference {ref_cols}")
+                out = get_output_path("reverse_lookup")
+                result = lookup.reverse_lookup(file, value_col, ref_file, key_col, val_col, out)
+
+            elif choice == "5":
+                join_col      = prompt(f"Join column in main file {cols}")
+                ref_file      = pick_single_file("Enter reference file path")
+                if not ref_file: continue
+                ref_cols      = pd.read_excel(ref_file, nrows=0).columns.tolist()
+                ref_join_col  = prompt(f"Join column in reference file {ref_cols}")
+                enrich_raw    = prompt(f"Columns to bring from reference (comma-sep or ALL) {ref_cols}")
+                if enrich_raw.strip().upper() == "ALL":
+                    enrich_cols = [c for c in ref_cols if c != ref_join_col]
+                else:
+                    enrich_cols = [c.strip() for c in enrich_raw.split(",") if c.strip()]
+                out = get_output_path("enriched_data")
+                result = lookup.enrich_from_lookup(file, join_col, ref_file, ref_join_col, enrich_cols, out)
+            else:
+                continue
+
+            success(f"Saved → {result}")
+        except Exception as e:
+            error(str(e))
+        pause()
+
+
+# =============================================================================
 # MAIN MENU
 # =============================================================================
 
@@ -896,36 +1705,87 @@ def main():
         banner()
         print(Fore.WHITE + Style.BRIGHT + "  MAIN MENU\n")
         options = [
-            ("1", "Consolidate Files       — stack, join, merge multiple Excel files"),
-            ("2", "Calculate & Analyze     — efficiency, KPIs, variance, stats"),
-            ("3", "Clean Data              — duplicates, blanks, formats, types"),
-            ("4", "Transform Data          — pivot, split, transpose, reshape"),
-            ("5", "Compare Files           — diff, new/deleted rows, changes"),
-            ("6", "Column Operations       — rename, split, merge, calculate columns"),
-            ("7", "Generate Reports        — summary, profile, KPI, frequency"),
-            ("8", "Quick File Preview      — peek at any Excel file"),
+            ("1",  "Consolidate Files       — stack, join, merge multiple Excel files"),
+            ("2",  "Calculate & Analyze     — efficiency, KPIs, variance, stats"),
+            ("3",  "Clean Data              — duplicates, blanks, formats, types"),
+            ("4",  "Transform Data          — pivot, split, transpose, reshape"),
+            ("5",  "Compare Files           — diff, new/deleted rows, changes"),
+            ("6",  "Column Operations       — rename, split, merge, calculate columns"),
+            ("7",  "Generate Reports        — summary, profile, KPI, frequency"),
+            ("8",  "Quick File Preview      — peek at any Excel file"),
+            ("9",  "Finance                 — aging, payroll, ratios, amortization"),
+            ("10", "HR Analytics            — attrition, headcount, tenure, salary"),
+            ("11", "Sales Analytics         — commission, RFM, quota, pipeline"),
+            ("12", "Inventory Management    — ABC, reorder point, OEE, dead stock"),
+            ("13", "Format & Style          — charts, traffic lights, table styles"),
+            ("14", "Validate Data           — email, phone, range, PII detection"),
+            ("15", "Statistical Analytics   — correlation, Pareto, regression, Z-score"),
+            ("16", "Convert Files           — Excel↔CSV, Excel↔JSON, XLS→XLSX"),
+            ("17", "Lookup & Match          — VLOOKUP, fuzzy match, multi-key join"),
         ]
         for key, label in options:
-            print(f"    {Fore.CYAN}{key}{Style.RESET_ALL}  {label}")
-        print(f"\n    {Fore.RED}0{Style.RESET_ALL}  Exit\n")
+            print(f"    {Fore.CYAN}{key:>2}{Style.RESET_ALL}  {label}")
+        print(f"\n    {Fore.RED} 0{Style.RESET_ALL}  Exit\n")
 
         choice = prompt("Select menu")
 
         if choice == "0":
             print(Fore.GREEN + "\n  Goodbye! All outputs saved to: " + str(OUTPUT_DIR))
             sys.exit(0)
-        elif choice == "1": menu_consolidate()
-        elif choice == "2": menu_calculate()
-        elif choice == "3": menu_clean()
-        elif choice == "4": menu_transform()
-        elif choice == "5": menu_compare()
-        elif choice == "6": menu_columns()
-        elif choice == "7": menu_reports()
-        elif choice == "8": menu_preview()
+        elif choice == "1":  menu_consolidate()
+        elif choice == "2":  menu_calculate()
+        elif choice == "3":  menu_clean()
+        elif choice == "4":  menu_transform()
+        elif choice == "5":  menu_compare()
+        elif choice == "6":  menu_columns()
+        elif choice == "7":  menu_reports()
+        elif choice == "8":  menu_preview()
+        elif choice == "9":  menu_finance()
+        elif choice == "10": menu_hr()
+        elif choice == "11": menu_sales()
+        elif choice == "12": menu_inventory()
+        elif choice == "13": menu_formatter()
+        elif choice == "14": menu_validator()
+        elif choice == "15": menu_analytics()
+        elif choice == "16": menu_converter()
+        elif choice == "17": menu_lookup()
         else:
             error("Invalid choice — please enter a number from the menu")
             pause()
 
 
 if __name__ == "__main__":
-    main()
+    MODULE_MAP = {
+        # Original modules
+        "consolidate": menu_consolidate,
+        "calculate":   menu_calculate,
+        "clean":       menu_clean,
+        "transform":   menu_transform,
+        "compare":     menu_compare,
+        "columns":     menu_columns,
+        "reports":     menu_reports,
+        "preview":     menu_preview,
+        # New modules
+        "finance":     menu_finance,
+        "hr":          menu_hr,
+        "sales":       menu_sales,
+        "inventory":   menu_inventory,
+        "format":      menu_formatter,
+        "validate":    menu_validator,
+        "analytics":   menu_analytics,
+        "convert":     menu_converter,
+        "lookup":      menu_lookup,
+    }
+
+    if len(sys.argv) > 1:
+        key = sys.argv[1].lower()
+        target = MODULE_MAP.get(key)
+        if target:
+            banner()
+            target()
+        else:
+            print(f"  [ERROR] Unknown module: '{key}'")
+            print(f"  Available: {', '.join(MODULE_MAP.keys())}")
+            sys.exit(1)
+    else:
+        main()
