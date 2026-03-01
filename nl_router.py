@@ -70,6 +70,159 @@ QUANTITY_WORDS = {
 }
 
 # =============================================================================
+# MODIFIER UPGRADES
+# When a "modifier" phrase appears alongside a base operation, we boost the
+# more-specific variant instead of the generic one.  Handles requests like:
+#   "consolidate but no repeats"  → pm_team_consolidate (with dedup)
+#   "compare and show only changes" → compare_changed
+#   "lookup but fuzzy match"       → lookup_fuzzy
+#   "report monthly breakdown"     → report_monthly
+# =============================================================================
+MODIFIER_UPGRADES = [
+    {
+        "name": "no_repeat",
+        "triggers": [
+            "no repeat", "no repeats", "no duplicate", "no duplicates",
+            "without repeat", "without repeats", "unique only",
+            "deduplicate", "dedup", "unique members", "unique employees",
+            "don't repeat", "do not repeat", "unique entries",
+        ],
+        "upgrades": {
+            "consolidate_stack":  ("pm_team_consolidate", 0.50),
+            "consolidate_sheets": ("pm_team_consolidate", 0.45),
+            "consolidate_cols":   ("pm_team_consolidate", 0.35),
+            "consolidate_cross":  ("pm_team_consolidate", 0.35),
+        },
+    },
+    {
+        "name": "changes_only",
+        "triggers": [
+            "only changes", "changed only", "what changed", "changes only",
+            "what is different", "show differences", "show changes",
+            "what's different", "whats different",
+        ],
+        "upgrades": {
+            "compare_files":        ("compare_changed", 0.65),
+            "compare_new_rows":     ("compare_changed", 0.45),
+            "compare_deleted_rows": ("compare_changed", 0.45),
+        },
+    },
+    {
+        "name": "fuzzy_match",
+        "triggers": [
+            "fuzzy", "approximate", "similar names", "close match",
+            "not exact", "partial match", "sounds like", "nearly",
+            "approximate match",
+        ],
+        "upgrades": {
+            "lookup_vlookup":  ("lookup_fuzzy", 0.55),
+            "lookup_multi":    ("lookup_fuzzy", 0.40),
+            "lookup_reverse":  ("lookup_fuzzy", 0.35),
+        },
+    },
+    {
+        "name": "by_month",
+        "triggers": [
+            "by month", "monthly breakdown", "month by month",
+            "monthly summary", "group by month", "per month",
+            "each month", "month wise", "monthwise",
+        ],
+        "upgrades": {
+            "report_summary":  ("report_monthly", 0.55),
+            "report_kpi":      ("report_monthly", 0.40),
+            "calc_stats":      ("report_monthly", 0.30),
+        },
+    },
+    {
+        "name": "top_n",
+        "triggers": [
+            "top 5", "top 10", "top 20", "top 3", "best 5", "best 10",
+            "highest rated", "top performers", "top customers",
+            "top records", "highest values",
+        ],
+        "upgrades": {
+            "report_summary":  ("report_top", 0.50),
+            "calc_stats":      ("report_top", 0.35),
+            "report_profile":  ("report_top", 0.30),
+        },
+    },
+    {
+        "name": "percentage",
+        "triggers": [
+            "as percentage", "as percent", "percentage of total",
+            "share of total", "% of total", "percent of total",
+            "contribution percentage", "each row percent",
+        ],
+        "upgrades": {
+            "calc_stats":       ("calc_pct_total", 0.55),
+            "calc_efficiency":  ("calc_pct_total", 0.35),
+            "calc_summary":     ("calc_pct_total", 0.30),
+        },
+    },
+    {
+        "name": "add_chart",
+        "triggers": [
+            "with chart", "add chart", "with graph", "add graph",
+            "visualize", "visualise", "chart it", "plot",
+            "draw chart", "show chart", "bar chart", "line chart",
+        ],
+        "upgrades": {
+            "report_summary":   ("format_bar_chart",  0.45),
+            "report_kpi":       ("format_bar_chart",  0.40),
+            "calc_pivot":       ("format_bar_chart",  0.35),
+            "analytics_pareto": ("format_bar_chart",  0.30),
+        },
+    },
+    {
+        "name": "traffic_light",
+        "triggers": [
+            "rag status", "red amber green", "traffic light",
+            "rag color", "rag colour", "colour code", "color code",
+            "red green", "green amber red", "rag",
+        ],
+        "upgrades": {
+            "format_table":   ("format_traffic", 0.60),
+            "report_kpi":     ("format_traffic", 0.45),
+            "pm_milestone":   ("format_traffic", 0.40),
+        },
+    },
+    {
+        "name": "split_result",
+        "triggers": [
+            "one file per", "separate file per", "individual files",
+            "per team", "per department", "per region", "per country",
+            "split into files",
+        ],
+        "upgrades": {
+            "transform_split":     ("pm_split_team", 0.50),
+            "pm_team_consolidate": ("pm_split_team", 0.35),
+        },
+    },
+    {
+        "name": "first_sheet_only",
+        "triggers": [
+            "first sheet", "first sheet only", "sheet 1 only",
+            "only first sheet", "from first sheet",
+        ],
+        "upgrades": {
+            "pm_team_consolidate": ("consolidate_stack", 0.35),
+        },
+    },
+]
+
+# Compound query splitters — ordered most-specific first to avoid wrong splits
+COMPOUND_SPLITTERS = [
+    " and then ",
+    " followed by ",
+    " after that ",
+    " and also ",
+    " subsequently ",
+    " afterwards ",
+    " after which ",
+    " then ",
+]
+
+# =============================================================================
 # INTENT MAP — 100+ operations across 17 modules
 # Each entry:
 #   id       : unique string
@@ -2243,6 +2396,65 @@ def match_scenario(
     return boosts
 
 
+def apply_modifier_boosts(
+    base_scores: Dict[str, float],
+    query: str,
+) -> Dict[str, float]:
+    """
+    Apply MODIFIER_UPGRADES: when modifier phrases appear in the query,
+    boost the more-specific intent variant over the generic one.
+
+    Example:
+        "consolidate but no repeats"  →  pm_team_consolidate +0.50
+        "compare and show only changes" → compare_changed +0.50
+        "lookup but fuzzy"             → lookup_fuzzy +0.55
+
+    Args:
+        base_scores : {intent_id: score} from keyword + scenario scoring
+        query       : raw NL query string
+
+    Returns:
+        Dict of extra boosts to apply on top: {intent_id: extra_boost}
+    """
+    extra: Dict[str, float] = {}
+    q = query.lower()
+
+    for mod in MODIFIER_UPGRADES:
+        # Check if any modifier trigger is present in query
+        if any(t in q for t in mod["triggers"]):
+            for base_id, (target_id, boost) in mod["upgrades"].items():
+                # Only upgrade when the base intent already has some relevance
+                if base_scores.get(base_id, 0.0) > 0.10:
+                    extra[target_id] = max(extra.get(target_id, 0.0), boost)
+
+    return extra
+
+
+def split_compound_query(query: str) -> Optional[List[str]]:
+    """
+    Detect a compound query (two sequential operations joined by connector).
+    Returns list of sub-query strings, or None if query is simple.
+
+    Only splits on clear sequential connectors to avoid false splits on
+    words like "and" alone (e.g. "merge and deduplicate" is ONE operation).
+
+    Examples:
+        "clean data and then pivot by department"
+            → ["clean data", "pivot by department"]
+        "remove duplicates followed by export to csv"
+            → ["remove duplicates", "export to csv"]
+        "consolidate all files"
+            → None  (no sequential connector)
+    """
+    q = query.lower().strip()
+    for splitter in COMPOUND_SPLITTERS:
+        if splitter in q:
+            parts = [p.strip() for p in q.split(splitter, 1) if p.strip()]
+            if len(parts) >= 2:
+                return parts
+    return None
+
+
 # =============================================================================
 # MAIN ENTRY POINT
 # =============================================================================
@@ -2289,16 +2501,26 @@ def parse_intent(
     # Scenario boosts
     boosts = match_scenario(query, file_info, context)
 
-    # Score all intents
+    # Score all intents (base + scenario boost)
+    raw_scores: Dict[str, float] = {}
+    for intent in INTENT_MAP:
+        base  = score_intent(query, intent)
+        boost = boosts.get(intent["id"], 0.0)
+        raw_scores[intent["id"]] = min(1.0, base + boost)
+
+    # Modifier boosts — upgrade to more-specific variant when modifier phrases present
+    modifier_extras = apply_modifier_boosts(raw_scores, query)
+
+    # Build final sorted list
     scored = []
     for intent in INTENT_MAP:
-        base = score_intent(query, intent)
-        boost = boosts.get(intent["id"], 0.0)
-        final = min(1.0, base + boost)
+        final = min(1.0, raw_scores[intent["id"]] + modifier_extras.get(intent["id"], 0.0))
         scored.append((final, intent))
 
-    # Sort descending
     scored.sort(key=lambda x: x[0], reverse=True)
+
+    # Detect compound/sequential query
+    compound_parts = split_compound_query(query)
 
     results = []
     for score, intent in scored[:top_n]:
@@ -2310,11 +2532,12 @@ def parse_intent(
             "low"
         )
         results.append({
-            "intent":     intent,
-            "score":      round(score, 3),
-            "confidence": confidence,
-            "file_info":  file_info,
-            "context":    context,
+            "intent":          intent,
+            "score":           round(score, 3),
+            "confidence":      confidence,
+            "file_info":       file_info,
+            "context":         context,
+            "compound_parts":  compound_parts,  # None or [part1, part2, ...]
         })
 
     return results

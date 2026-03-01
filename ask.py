@@ -42,6 +42,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from nl_router import (
     parse_intent, inspect_file, get_columns_from_file,
     get_output_path, get_output_dir, extract_number_from_query,
+    split_compound_query,
 )
 
 
@@ -346,7 +347,35 @@ def interactive_mode():
 def run(files: list, query: str):
     """Core: parse intent → collect params → execute."""
 
-    # File inspection
+    # ── Compound query detection ──────────────────────────────────────────────
+    # If the query contains a clear sequential connector ("and then", "then",
+    # "followed by", etc.), split it into independent sub-queries and run each.
+    compound_parts = split_compound_query(query)
+    if compound_parts:
+        print(_c(Fore.CYAN + Style.BRIGHT,
+                 f"\n  💡 Multi-step query detected ({len(compound_parts)} operations):"))
+        for i, part in enumerate(compound_parts, 1):
+            print(f"     {i}. \"{part}\"")
+
+        choice = ask_yn(
+            f"\n  Run all {len(compound_parts)} steps sequentially?",
+            default=True,
+        )
+        if choice:
+            for i, part in enumerate(compound_parts, 1):
+                print(_c(Fore.CYAN + Style.BRIGHT,
+                         f"\n  ═══ Step {i}/{len(compound_parts)}: \"{part}\" ═══"))
+                run(files, part)
+            return
+        else:
+            nums = "/".join(str(i) for i in range(1, len(compound_parts) + 1))
+            raw = ask_input(f"Which step to run? [{nums}]", "1")
+            idx = (int(raw) - 1) if raw.isdigit() else 0
+            idx = max(0, min(len(compound_parts) - 1, idx))
+            query = compound_parts[idx]
+            print(_c(Fore.CYAN, f"\n  Running step {idx+1}: \"{query}\""))
+
+    # ── File inspection ───────────────────────────────────────────────────────
     if files:
         print(_c(Fore.CYAN, f"\n  📂 Inspecting file: {Path(files[0]).name}"))
         try:
