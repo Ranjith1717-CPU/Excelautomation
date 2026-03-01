@@ -26,7 +26,7 @@ def team_consolidator(files: list, output_path: str,
     for f in files:
         xl = pd.ExcelFile(f)
         for sheet in xl.sheet_names:
-            df = pd.read_excel(f, sheet_name=sheet)
+            df = pd.read_excel(f, sheet_name=sheet).copy()
             if df.empty:
                 continue
             if add_source:
