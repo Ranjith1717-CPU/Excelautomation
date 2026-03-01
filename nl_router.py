@@ -1988,7 +1988,7 @@ def get_columns_from_file(file_path: str) -> List[str]:
         else:
             import pandas as pd
             df = pd.read_excel(file_path, nrows=0)
-        return list(df.columns)
+        return [str(c) for c in df.columns if c is not None and str(c) != "nan"]
     except Exception:
         return []
 
@@ -2036,7 +2036,10 @@ def inspect_file(file_path: str) -> Dict[str, Any]:
 
         # Domain detection from column names
         all_cols_lower = " ".join(
-            c.lower() for cols in info["columns"].values() for c in cols
+            str(c).lower()
+            for cols in info["columns"].values()
+            for c in cols
+            if c is not None
         )
         for domain, hints in DOMAIN_HINTS.items():
             if any(h in all_cols_lower for h in hints):
@@ -2180,9 +2183,10 @@ def match_scenario(
     sc = file_info.get("sheet_count", 1)
     domain = file_info.get("domain_hint")
     all_cols_lower = " ".join(
-        c.lower()
+        str(c).lower()
         for cols in file_info.get("columns", {}).values()
         for c in cols
+        if c is not None
     )
     time_refs = context.get("time_refs", [])
     goal_hints = context.get("goal_hints", [])
