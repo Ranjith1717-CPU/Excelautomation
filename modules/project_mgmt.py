@@ -30,8 +30,7 @@ def team_consolidator(files: list, output_path: str,
             if df.empty:
                 continue
             if add_source:
-                df.insert(0, '_Source_Sheet', sheet)
-                df.insert(0, '_Source_File', Path(f).stem)
+                df = df.assign(_Source_File=Path(f).stem, _Source_Sheet=sheet)
             frames.append(df)
 
     if not frames:

@@ -1814,12 +1814,19 @@ INTENT_MAP = [
     {
         "id": "pm_team_consolidate",
         "module": "project_mgmt", "fn": "team_consolidator",
-        "desc": "Merge team member data from multiple files (dedup by ID)",
+        "desc": "Merge team member data from ALL sheets of ALL files, deduplicate by ID column",
         "keywords": ["team consolidate", "merge team data", "team members merge",
-                     "consolidate team"],
+                     "consolidate team", "same team members", "no duplicates",
+                     "no repeats", "without repeats", "deduplicate", "unique members",
+                     "across sheets", "from different sheets", "from multiple sheets",
+                     "all sheets all files", "team data", "member data",
+                     "employee data", "people data",
+                     "consolidate", "merge", "combine"],
         "anti": [], "multi": True,
         "params": [
             {"name": "files",       "type": "files"},
+            {"name": "id_col",      "type": "col_opt",
+             "prompt": "Employee ID / unique key column for deduplication (Enter=skip dedup)"},
             {"name": "output_path", "type": "output"},
         ]
     },
@@ -2210,6 +2217,11 @@ def match_scenario(
         if num == sc and sc > 1:
             boosts["pm_timesheet"] = boosts.get("pm_timesheet", 0) + 0.20
             boosts["consolidate_sheets"] = boosts.get("consolidate_sheets", 0) + 0.10
+
+    # Multiple files + consolidate → team_consolidator (reads ALL sheets, deduplicates)
+    # Give a strong boost so it outranks plain merge_files_stack
+    if file_info.get("file_count", 1) > 1 and "consolidate" in goal_hints:
+        boosts["pm_team_consolidate"] = boosts.get("pm_team_consolidate", 0) + 0.50
 
     # Two files + compare
     if file_info.get("file_count", 1) == 2 and "compare" in goal_hints:
