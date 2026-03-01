@@ -330,18 +330,87 @@ def show_result(result, kwargs: dict):
 # MAIN
 # =============================================================================
 
-def interactive_mode():
-    """Fully interactive: prompt for file + query."""
-    banner()
-    raw_path = ask_input("File path (or folder)").strip()
-    files = resolve_files([raw_path]) if raw_path else []
-    if not files:
-        print(_c(Fore.YELLOW, "  No files found. Continuing with query only."))
-    query = ask_input("What do you want to do?").strip()
-    if not query:
-        print(_c(Fore.RED, "  No query provided. Exiting."))
-        return
-    run(files, query)
+def home_menu():
+    """
+    Unified home screen: shows all 18 module options first, then
+    offers the NL prompt at the bottom so the user can either:
+      • Pick a module by number  → launches that module's classic menu
+      • Type a plain-English query → NL routing
+    Loops until the user exits with 0.
+    """
+    import importlib
+    _main = importlib.import_module("main")   # load main.py once
+
+    MODULES = [
+        ("1",  "Consolidate Files",      "stack, join, merge multiple Excel files",       _main.menu_consolidate),
+        ("2",  "Calculate & Analyze",    "efficiency, KPIs, variance, stats",             _main.menu_calculate),
+        ("3",  "Clean Data",             "duplicates, blanks, formats, types",            _main.menu_clean),
+        ("4",  "Transform Data",         "pivot, split, transpose, reshape",              _main.menu_transform),
+        ("5",  "Compare Files",          "diff, new/deleted rows, changes",               _main.menu_compare),
+        ("6",  "Column Operations",      "rename, split, merge, calculate columns",       _main.menu_columns),
+        ("7",  "Generate Reports",       "summary, profile, KPI, frequency",              _main.menu_reports),
+        ("8",  "Quick File Preview",     "peek at any Excel file",                        _main.menu_preview),
+        ("9",  "Finance",                "aging, payroll, ratios, amortization",          _main.menu_finance),
+        ("10", "HR Analytics",           "attrition, headcount, tenure, salary",          _main.menu_hr),
+        ("11", "Sales Analytics",        "commission, RFM, quota, pipeline",              _main.menu_sales),
+        ("12", "Inventory Management",   "ABC, reorder point, OEE, dead stock",           _main.menu_inventory),
+        ("13", "Format & Style",         "charts, traffic lights, table styles",          _main.menu_formatter),
+        ("14", "Validate Data",          "email, phone, range, PII detection",            _main.menu_validator),
+        ("15", "Statistical Analytics",  "correlation, Pareto, regression, Z-score",      _main.menu_analytics),
+        ("16", "Convert Files",          "Excel↔CSV, Excel↔JSON, XLS→XLSX",              _main.menu_converter),
+        ("17", "Lookup & Match",         "VLOOKUP, fuzzy match, multi-key join",          _main.menu_lookup),
+        ("18", "Project Management",     "timesheets, milestones, RACI, risks, sprints",  _main.menu_project_mgmt),
+    ]
+
+    while True:
+        banner()
+
+        # ── Built-in module options ───────────────────────────────────────────
+        print(_c(Fore.WHITE + Style.BRIGHT, "  MODULES\n"))
+        for key, name, desc, _ in MODULES:
+            print(f"    {_c(Fore.CYAN, f'{key:>2}')}  "
+                  f"{name:<24}  {_c(Fore.WHITE, desc)}")
+
+        print(f"\n    {_c(Fore.RED, ' 0')}  Exit\n")
+
+        # ── NL prompt ─────────────────────────────────────────────────────────
+        print(_c(Fore.YELLOW + Style.BRIGHT,
+                 "  ─────────────────────────────────────────────────────────"))
+        print(_c(Fore.YELLOW + Style.BRIGHT,
+                 "  💬 Or just tell me what you want to do (plain English):"))
+        print()
+
+        raw = input(_c(Fore.WHITE + Style.BRIGHT,
+                       "  → Pick [1-18 / 0] or describe what you want: ")).strip()
+
+        if not raw or raw == "0":
+            print(_c(Fore.GREEN, "\n  Goodbye!  All outputs saved to: output/"))
+            break
+
+        # ── Module picked by number ───────────────────────────────────────────
+        if raw.isdigit():
+            idx = int(raw)
+            if 1 <= idx <= 18:
+                _main.banner()
+                MODULES[idx - 1][3]()   # call the module's menu function
+                continue                # back to home menu when it returns
+            else:
+                print(_c(Fore.RED, f"\n  Invalid choice: {raw}  (enter 1–18 or 0)"))
+                input("  Press Enter to continue...")
+                continue
+
+        # ── Natural language query ────────────────────────────────────────────
+        print()
+        raw_path = ask_input("File path or folder (Enter to skip)").strip()
+        files = resolve_files([raw_path]) if raw_path else []
+        if not files:
+            print(_c(Fore.YELLOW, "  No files — continuing with query only."))
+        run(files, raw)
+
+        # After NL op, offer to run another without going back to the full menu
+        print()
+        if not ask_yn("Run another operation?", default=False):
+            break
 
 
 def run(files: list, query: str):
@@ -471,9 +540,9 @@ def run(files: list, query: str):
 def main():
     args = sys.argv[1:]
 
-    # No args → interactive
+    # No args → unified home menu (modules + NL)
     if not args:
-        interactive_mode()
+        home_menu()
         return
 
     # Last arg is likely the query (doesn't look like a file path)
