@@ -1,13 +1,81 @@
-# Excel Automation Toolkit v2.0
+# Excel Automation Toolkit v3.0
 
 All-in-one Excel automation powered by Python + pandas.
-One interactive CLI covering every common Excel task — 18 modules, 100+ operations.
+18 modules, 100+ operations — now with a **Natural Language Interface**: just tell it what you want.
+
+---
+
+## What's New in v3.0 — Natural Language Interface
+
+No more menus. Type what you want in plain English and the toolkit figures out which operation to run.
+
+```bash
+python ask.py sales.xlsx "remove duplicates"
+python ask.py reports/ "consolidate all files into one"
+python ask.py orders.xlsx "rfm customer segmentation"
+python ask.py q1.xlsx q2.xlsx q3.xlsx "compare and find what changed"
+```
+
+Or use the browser UI:
+
+```bash
+streamlit run ask_web.py
+# → opens http://localhost:8501
+```
+
+Windows: double-click `ask.bat` or `run_ask_web.bat`.
+
+### How it works
+
+- **100% offline** — no LLM, no API key, no internet required
+- **133 mapped intents** across all 17 modules
+- **Keyword scoring** — phrase matches score higher than single words
+- **Synonym expansion** — "tidy" → "clean", "tidy up" → matches cleaner operations
+- **File inspection** — reads sheet names, column headers, row counts before suggesting anything
+- **Scenario detection** — structural context clues boost the right intent:
+
+```
+> python ask.py team_data.xlsx "three quarterly sheets, give me a consolidated one"
+
+📊 File: team_data.xlsx
+   Sheets: Q1_2025, Q2_2025, Q3_2025  ✓ matches "three sheets"
+   Columns: Name, Dept, Hours, Project, Date
+   Domain: HR / Project Management
+
+Matched operations:
+  [1] ✅  project_mgmt → timesheet_rollup       75%
+  [2] 🔸  consolidator → merge_sheets_in_file   45%
+  [3] 🔸  comparator   → compare_two_files      33%
+```
+
+### Confidence levels
+
+| Score | Behaviour |
+|-------|-----------|
+| ≥ 60% | Auto-selects — asks Y/n to confirm |
+| 30–60% | Shows ranked list — user picks |
+| < 30% | Falls back to full module menu |
 
 ---
 
 ## Quick Start
 
-**Windows:** Double-click `run.bat`
+**Natural Language (new):**
+```bash
+python ask.py file.xlsx "what to do"   # CLI
+streamlit run ask_web.py               # browser UI
+ask.bat file.xlsx "what to do"         # Windows CLI
+run_ask_web.bat                        # Windows browser UI
+```
+
+**Classic menu:**
+```bash
+pip install -r requirements.txt
+python main.py
+```
+
+**Windows (classic):** double-click `run.bat`
+
 **Jump straight to a module:**
 ```bat
 run_finance.bat
@@ -15,12 +83,25 @@ run_hr.bat
 run_sales.bat
 run_analytics.bat
 ```
-**Manual:**
-```bash
-pip install -r requirements.txt
-python main.py
-python main.py finance       # jump directly to a module
-```
+
+---
+
+## Natural Language Examples
+
+| You type | Operation run |
+|----------|---------------|
+| `"remove duplicates"` | cleaner → remove_duplicates |
+| `"fill missing values with mean"` | cleaner → fill_missing_values |
+| `"pivot by department and sum sales"` | transformer → create_pivot_table |
+| `"compare two files and find changes"` | comparator → compare_two_files |
+| `"rfm customer segmentation"` | sales → rfm_segmentation |
+| `"attrition analysis by department"` | hr → attrition_analysis |
+| `"aging report for accounts receivable"` | finance → aging_analysis |
+| `"sprint velocity backlog"` | project_mgmt → sprint_tracker |
+| `"forecast next 12 months"` | analytics → trend_forecast |
+| `"data quality report"` | validator → data_quality_report |
+| `"consolidate all sheets in the file"` | consolidator → merge_sheets_in_file |
+| `"vlookup from reference file"` | lookup → vlookup |
 
 ---
 
@@ -46,7 +127,8 @@ standalone/
 ├── transform/
 ├── compare/
 ├── columns/
-└── reports/
+├── reports/
+└── project_mgmt/
 ```
 
 Double-click `run.bat` inside any folder to launch that module standalone.
@@ -58,7 +140,7 @@ python generate_standalone.py
 
 ---
 
-## 17 Modules
+## 18 Modules
 
 ### 1. Consolidate Files
 | Operation | Description |
@@ -208,6 +290,13 @@ python generate_standalone.py
 - Excel → Tab/pipe/custom delimited text
 - Merge multiple CSV files into one Excel
 
+### 17. Lookup & Match
+- VLOOKUP — Join columns from a reference file
+- Fuzzy Match — Approximate string matching (rapidfuzz)
+- Multi-Key Lookup — Multi-column JOIN
+- Reverse Lookup — Find key by value
+- Enrich from Reference — Add columns from a master file
+
 ### 18. Project Management
 - **Team Consolidator** — Merge team member data from multiple files/sheets; optional dedup on ID column
 - **Split by Team** — One file per department/team from a master sheet
@@ -220,26 +309,25 @@ python generate_standalone.py
 - **Capacity Planner** — Available vs allocated hours, utilisation %, over-allocation alerts by team
 - **Sprint Tracker** — Velocity per sprint, completion %, backlog health, sprints-to-clear estimate
 
-### 17. Lookup & Match
-- VLOOKUP — Join columns from a reference file
-- Fuzzy Match — Approximate string matching (rapidfuzz)
-- Multi-Key Lookup — Multi-column JOIN
-- Reverse Lookup — Find key by value
-- Enrich from Reference — Add columns from a master file
-
 ---
 
 ## Folder Structure
+
 ```
 excel-automation/
-├── main.py                  ← Full toolkit (all 17 modules)
+├── nl_router.py             ← NL intent engine (133 intents, offline)
+├── ask.py                   ← Natural language CLI
+├── ask_web.py               ← Streamlit browser UI
+├── ask.bat                  ← Windows NL CLI launcher
+├── run_ask_web.bat          ← Windows browser UI launcher
+├── main.py                  ← Classic full-menu CLI (all 18 modules)
 ├── generate_standalone.py   ← Re-generates standalone/ from main.py
-├── run.bat                  ← Full toolkit launcher
+├── run.bat                  ← Classic toolkit launcher
 ├── run_finance.bat          ← Jump directly to Finance
 ├── run_hr.bat               ← Jump directly to HR
 ├── run_*.bat                ← (one per module)
 ├── requirements.txt
-├── modules/                 ← Shared module pool
+├── modules/                 ← Shared module pool (17 files)
 │   ├── consolidator.py
 │   ├── calculator.py
 │   ├── cleaner.py
@@ -255,12 +343,13 @@ excel-automation/
 │   ├── validator.py
 │   ├── analytics.py
 │   ├── converter.py
-│   └── lookup.py
+│   ├── lookup.py
+│   └── project_mgmt.py
 ├── standalone/              ← Self-contained shareable folders
 │   ├── finance/             → finance.py + cli.py + run.bat
 │   ├── hr/
 │   ├── project_mgmt/
-│   └── ... (17 folders)
+│   └── ... (17 folders total)
 ├── output/                  ← All results saved here (auto-timestamped)
 └── sample_data/             ← Place your test Excel files here
 ```
@@ -276,7 +365,10 @@ excel-automation/
 ---
 
 ## Dependencies
+
 ```
 pandas, openpyxl, xlrd, colorama, tabulate, numpy, rapidfuzz (lookup only)
+streamlit (browser UI only — installed automatically by run_ask_web.bat)
 ```
-All installed automatically by `run.bat` or each module's own `run.bat`.
+
+All core dependencies installed automatically by `run.bat` or each module's own `run.bat`.
