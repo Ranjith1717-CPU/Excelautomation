@@ -238,7 +238,7 @@ INTENT_MAP = [
         "module": "cleaner", "fn": "full_clean",
         "desc": "Run all cleaning steps in one shot",
         "keywords": ["full clean", "clean everything", "clean all", "complete clean",
-                     "clean the file", "clean up", "all cleaning"],
+                     "clean the file", "clean up", "all cleaning", "clean"],
         "anti": [], "multi": False,
         "params": [
             {"name": "file",        "type": "file"},
@@ -252,7 +252,8 @@ INTENT_MAP = [
         "module": "consolidator", "fn": "merge_files_stack",
         "desc": "Stack multiple Excel files vertically (append rows)",
         "keywords": ["stack files", "consolidate files", "combine files", "append files",
-                     "merge files", "stack together", "union files", "merge all"],
+                     "merge files", "stack together", "union files", "merge all",
+                     "consolidate", "merge", "combine", "stack"],
         "anti": ["join on", "by key", "same sheet", "sheets"],
         "multi": True,
         "params": [
@@ -291,7 +292,8 @@ INTENT_MAP = [
         "module": "consolidator", "fn": "merge_sheets_in_file",
         "desc": "Consolidate all sheets in a single file into one sheet",
         "keywords": ["merge sheets", "combine sheets", "consolidate sheets", "all sheets",
-                     "stack sheets", "sheets into one", "multi sheet"],
+                     "stack sheets", "sheets into one", "multi sheet",
+                     "consolidate", "merge", "combine"],
         "anti": ["multiple files", "separate files"],
         "multi": False,
         "params": [

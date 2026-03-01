@@ -143,7 +143,7 @@ def merge_sheets_in_file(file_path: str, output_path: str,
     for sheet in xl.sheet_names:
         df = pd.read_excel(file_path, sheet_name=sheet)
         if add_sheet_column:
-            df["_Sheet_Name"] = sheet
+            df = df.assign(_Sheet_Name=sheet)
         dfs.append(df)
         print(f"    Sheet   : '{sheet}'  ({len(df):,} rows)")
 
